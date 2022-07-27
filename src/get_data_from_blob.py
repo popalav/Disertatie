@@ -5,6 +5,7 @@ from pathlib import Path
 import pandas as pd
 from azure.storage.blob import BlobClient, ContainerClient
 from utilities import Actions
+import re
 
 N_STR = 'BlobEndpoint=https://disertatiestorageaccount.blob.core.windows.net/;QueueEndpoint=https://disertatiestorageaccount.queue.core.windows.net/;FileEndpoint=https://disertatiestorageaccount.file.core.windows.net/;TableEndpoint=https://disertatiestorageaccount.table.core.windows.net/;SharedAccessSignature=sv=2020-08-04&ss=bfqt&srt=sco&sp=rwdlacupitfx&se=2022-03-18T07:37:21Z&st=2022-03-17T23:37:21Z&spr=https&sig=uvHB8JM97JDU6%2BPSVGQheKH5PtAuTlyStJYyjgh%2B9I4%3D'
 BLOB_CONN_STR = 'BlobEndpoint=https://disertatiestorageaccount.blob.core.windows.net/;QueueEndpoint=https://disertatiestorageaccount.queue.core.windows.net/;FileEndpoint=https://disertatiestorageaccount.file.core.windows.net/;TableEndpoint=https://disertatiestorageaccount.table.core.windows.net/;SharedAccessSignature=sv=2020-08-04&ss=bfqt&srt=sco&sp=rwdlacupitfx&se=2022-10-08T13:59:02Z&st=2022-04-13T05:59:02Z&spr=https,http&sig=oIjqHMLHKmZRVNhbSze4PzBtTo6F%2BZHZ01plxAucRR4%3D'
@@ -111,7 +112,10 @@ def parse_file_name(file_name: str):
 
 def make_dataframe_from_blob(full_blob_path: str) -> pd.DataFrame:
     """ Creates a dataframe with selected info from blob"""
-    full_df = pd.DataFrame(columns=['deviceId', 'enqueuedTime', 'telemetry'])
+    full_df = pd.DataFrame(columns=['deviceId', 'enqueuedTime', 'telemetry', 
+                                    'acc_x', 'acc_y', 'acc_z', 'gyr_x', 
+                                    'gyr_y', 'gyr_z', 'mag_x', 'mag_y', 
+                                    'mag_z', 'geo_alt', 'geo_lat', 'geo_lon'])
     with open(full_blob_path, 'r') as f:
         data = f.readlines()
     for nr, el in enumerate(data):
@@ -119,12 +123,40 @@ def make_dataframe_from_blob(full_blob_path: str) -> pd.DataFrame:
         for e  in el:
             name = e.split('":')[0].strip('"')
             value = e.split('":')[1].strip('"')
-            if name == 'deviceId':
-                full_df.loc[nr, 'deviceId'] = value
-            if name == 'enqueuedTime':
-                full_df.loc[nr, 'enqueuedTime'] = value
-            if name == 'telemetry':
-                full_df.loc[nr, 'telemetry'] = e.split('}}')[0].split('y":{"')[1] + '}'
+            battery_case = re.search('battery',va)
+            geolocation_case = re.search('geolocation',telemetry)
+            if battery_case is None and geolocation_case is None:
+                if name == 'deviceId':
+                    full_df.loc[nr, 'deviceId'] = value
+                if name == 'enqueuedTime':
+                    full_df.loc[nr, 'enqueuedTime'] = value
+                if name == 'telemetry':
+                    telemetry = e.split('}}')[0].split('y":{"')[1] + '}'
+                    # battery_case = re.search('battery',telemetry)
+                    # geolocation_case = re.search('geolocation',telemetry)
+                    # if battery_case is None and geolocation_case is None:
+                    full_df.loc[nr, 'telemetry'] = telemetry
+                    sensor_type = telemetry.split('":{"')[0]
+                    sensor_values = telemetry.split('":{"')[1]
+                    # daca tot randul de telemetry contine battery sau geolocation  nu se adauga randul deloc in da
+                    # taframe, daca nu se merge si se adauga tot ce e necesar       
+                    if sensor_type == 'accelerometer':
+                        full_df.loc[nr, 'acc_x'] = sensor_values.split(',')[0].split(':')[1]
+                        full_df.loc[nr, 'acc_y'] = sensor_values.split(',')[1].split(':')[1]
+                        full_df.loc[nr, 'acc_z'] = sensor_values.split(',')[2].split(':')[1]
+                    elif sensor_type == 'gyroscope':
+                        full_df.loc[nr, 'gyr_x'] = sensor_values.split(',')[0].split(':')[1]
+                        full_df.loc[nr, 'gyr_y'] = sensor_values.split(',')[1].split(':')[1]
+                        full_df.loc[nr, 'gyr_z'] = sensor_values.split(',')[2].split(':')[1]
+                    elif sensor_type == 'magnetometer':
+                        full_df.loc[nr, 'mag_x'] = sensor_values.split(',')[0].split(':')[1]
+                        full_df.loc[nr, 'mag_y'] = sensor_values.split(',')[1].split(':')[1]
+                        full_df.loc[nr, 'mag_z'] = sensor_values.split(',')[2].split(':')[1]
+                    elif sensor_type == 'geolocation':
+                        full_df.loc[nr, 'geo_alt'] = sensor_values.split(',')[0].split(':')[1]
+                        full_df.loc[nr, 'geo_lat'] = sensor_values.split(',')[1].split(':')[1]
+                        full_df.loc[nr, 'geo_lon'] = sensor_values.split(',')[2].split(':')[1]
+
     return full_df
 
 def append_files(filenames: List[str], master_folder:str,
@@ -169,13 +201,23 @@ def merge_blobs(month:str, day: str, master_folder:str, start_hour:int,
     append_files(selected_files, master_folder, start_min, end_min, 'URCARE')
     return selected_files
 
-
-
+def blob_to_csv(full_blob_path:str):
+    """ Selects only needed needed info from merged blob usually
+    and it transform to a df then it writes the df to a csv"""
+    current_path = Path(__file__).parent.resolve()
+    newpath = f'{current_path}\\csv'
+    if not os.path.exists(newpath):
+        os.makedirs(newpath)
+    df = make_dataframe_from_blob(full_blob_path)
+    os.chdir(f'{current_path}\\csv')
+    csv_name = full_blob_path.split('\\')[-1]
+    df.to_csv(f'{csv_name}.csv')
 
 def main():     
     
-    # pd = make_dataframe_from_blob(r'D:\Uni_life\MASTER\Anul_2\DISERTATIE\Project\src\src\03\18\fb1231ec-5b6b-476b-9751-71ae87ed1766.29.2022.03.28.16.36.62voms3a7mixw.txt')
-    merge_blobs('06', '01', '29', 19, 19, 10, 12)
+    pd = make_dataframe_from_blob(r'D:\Uni_life\MASTER\Anul_2\DISERTATIE\Disertatie\src\06\01\fb1231ec-5b6b-476b-9751-71ae87ed1766.29.2022.06.01.19.11.mcwwizq7em5si.txt')
+    # merge_blobs('06', '01', '29', 19, 19, 10, 12)
+    # blob_to_csv(r'D:\Uni_life\MASTER\Anul_2\DISERTATIE\Disertatie\src\merged\URCARE.29.10_12.txt')
     n = 0 
 
 if __name__ == "__main__":
