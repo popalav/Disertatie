@@ -13,10 +13,10 @@ Inside Azure Container "disertatie" there is another folder named "fb1231ec-5b6b
 inside this folder azure creates a new folder for each device, in folder "14" it recordes battery level, 
 which in not needed for this thesis, in the other folders there is data for a device organised by time.
 
-Lavi's folder --> 29 --> Device's Id
-Edi's folder  --> 18 --> Device's Id
-Paul's folder --> 19 --> Device's Id
-Mara's folder --> 4 --> Device's Id
+Lavi's folder --> 29 --> Device's Id\
+Edi's folder  --> 18 --> Device's Id\
+Paul's folder --> 19 --> Device's Id\
+Mara's folder --> 4 --> Device's Id\
 Darius's folder --> 5 --> Device's Id
 # DATA COLLECTION:
  ## STEPPER (Scari Urcare):
