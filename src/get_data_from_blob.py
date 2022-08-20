@@ -110,53 +110,57 @@ def parse_file_name(file_name: str):
     year = file_name.split('.')[-7]
     return Timestamp(minutes=minutes, hours=hours, day=day, month=month, year=year)
 
-def make_dataframe_from_blob(full_blob_path: str) -> pd.DataFrame:
+def make_dataframe_from_blob(full_blob_path: str, action:str) -> pd.DataFrame:
     """ Creates a dataframe with selected info from blob"""
-    full_df = pd.DataFrame(columns=['deviceId', 'enqueuedTime', 'telemetry', 
-                                    'acc_x', 'acc_y', 'acc_z', 'gyr_x', 
-                                    'gyr_y', 'gyr_z', 'mag_x', 'mag_y', 
-                                    'mag_z', 'geo_alt', 'geo_lat', 'geo_lon'])
+    full_df = pd.DataFrame(columns=['deviceId', 'action', 'enqueuedTime', 'telemetry', 
+                                    'acc_x', 'acc_y', 'acc_z'])
+                                    # , 'gyr_x', 
+                                    # 'gyr_y', 'gyr_z', 'mag_x', 'mag_y', 
+                                    # 'mag_z', 'geo_alt', 'geo_lat', 'geo_lon'])
     with open(full_blob_path, 'r') as f:
         data = f.readlines()
     for nr, el in enumerate(data):
         el = el.split('","')
+        row_dictionary = {}
+        row_dictionary['action'] = action
         for e  in el:
             name = e.split('":')[0].strip('"')
             value = e.split('":')[1].strip('"')
-            battery_case = re.search('battery',va)
-            geolocation_case = re.search('geolocation',telemetry)
-            if battery_case is None and geolocation_case is None:
-                if name == 'deviceId':
-                    full_df.loc[nr, 'deviceId'] = value
-                if name == 'enqueuedTime':
-                    full_df.loc[nr, 'enqueuedTime'] = value
-                if name == 'telemetry':
-                    telemetry = e.split('}}')[0].split('y":{"')[1] + '}'
-                    # battery_case = re.search('battery',telemetry)
-                    # geolocation_case = re.search('geolocation',telemetry)
-                    # if battery_case is None and geolocation_case is None:
-                    full_df.loc[nr, 'telemetry'] = telemetry
+            # dict to hold one row of df worth of info
+            if name == 'deviceId':
+                # full_df.loc[nr, 'deviceId'] = value
+                row_dictionary['deviceId'] = value
+            if name == 'enqueuedTime':
+                # full_df.loc[nr, 'enqueuedTime'] = value
+                row_dictionary['enqueuedTime'] = value
+            if name == 'telemetry':
+                telemetry = e.split('}}')[0].split('y":{"')[1] + '}'
+                battery_case = re.search('battery', value)
+                geolocation_case = re.search('geolocation',telemetry)
+                if battery_case is None and geolocation_case is None:
                     sensor_type = telemetry.split('":{"')[0]
                     sensor_values = telemetry.split('":{"')[1]
                     # daca tot randul de telemetry contine battery sau geolocation  nu se adauga randul deloc in da
                     # taframe, daca nu se merge si se adauga tot ce e necesar       
                     if sensor_type == 'accelerometer':
-                        full_df.loc[nr, 'acc_x'] = sensor_values.split(',')[0].split(':')[1]
-                        full_df.loc[nr, 'acc_y'] = sensor_values.split(',')[1].split(':')[1]
-                        full_df.loc[nr, 'acc_z'] = sensor_values.split(',')[2].split(':')[1]
+                        # row_dictionary['telemetry'] = telemetry
+                        row_dictionary['acc_x'] = sensor_values.split(',')[0].split(':')[1]
+                        row_dictionary['acc_y'] = sensor_values.split(',')[1].split(':')[1]
+                        row_dictionary['acc_z'] = sensor_values.split(',')[2].split(':')[1]
+                    """ 
                     elif sensor_type == 'gyroscope':
-                        full_df.loc[nr, 'gyr_x'] = sensor_values.split(',')[0].split(':')[1]
-                        full_df.loc[nr, 'gyr_y'] = sensor_values.split(',')[1].split(':')[1]
-                        full_df.loc[nr, 'gyr_z'] = sensor_values.split(',')[2].split(':')[1]
+                        row_dictionary['gyr_x'] = sensor_values.split(',')[0].split(':')[1]
+                        row_dictionary['gyr_y'] = sensor_values.split(',')[1].split(':')[1]
+                        row_dictionary['gyr_z'] = sensor_values.split(',')[2].split(':')[1]
                     elif sensor_type == 'magnetometer':
-                        full_df.loc[nr, 'mag_x'] = sensor_values.split(',')[0].split(':')[1]
-                        full_df.loc[nr, 'mag_y'] = sensor_values.split(',')[1].split(':')[1]
-                        full_df.loc[nr, 'mag_z'] = sensor_values.split(',')[2].split(':')[1]
-                    elif sensor_type == 'geolocation':
-                        full_df.loc[nr, 'geo_alt'] = sensor_values.split(',')[0].split(':')[1]
-                        full_df.loc[nr, 'geo_lat'] = sensor_values.split(',')[1].split(':')[1]
-                        full_df.loc[nr, 'geo_lon'] = sensor_values.split(',')[2].split(':')[1]
-
+                        row_dictionary['mag_x'] = sensor_values.split(',')[0].split(':')[1]
+                        row_dictionary['mag_y'] = sensor_values.split(',')[1].split(':')[1]
+                        row_dictionary['mag_z'] = sensor_values.split(',')[2].split(':')[1]
+                    """
+        # append te dict to the df only if the telemetry column is present
+        n = 0
+        if 'telemetry' in row_dictionary.keys():
+            full_df = full_df.append(row_dictionary, ignore_index=True)
     return full_df
 
 def append_files(filenames: List[str], master_folder:str,
@@ -208,16 +212,14 @@ def blob_to_csv(full_blob_path:str):
     newpath = f'{current_path}\\csv'
     if not os.path.exists(newpath):
         os.makedirs(newpath)
-    df = make_dataframe_from_blob(full_blob_path)
+    df = make_dataframe_from_blob(full_blob_path, 'URCARE')
     os.chdir(f'{current_path}\\csv')
     csv_name = full_blob_path.split('\\')[-1]
     df.to_csv(f'{csv_name}.csv')
 
 def main():     
-    
-    pd = make_dataframe_from_blob(r'D:\Uni_life\MASTER\Anul_2\DISERTATIE\Disertatie\src\06\01\fb1231ec-5b6b-476b-9751-71ae87ed1766.29.2022.06.01.19.11.mcwwizq7em5si.txt')
-    # merge_blobs('06', '01', '29', 19, 19, 10, 12)
-    # blob_to_csv(r'D:\Uni_life\MASTER\Anul_2\DISERTATIE\Disertatie\src\merged\URCARE.29.10_12.txt')
+    n = 0
+    blob_to_csv(r'D:\Uni_life\MASTER\Anul_2\DISERTATIE\Disertatie\src\merged\URCARE.29.10_12.txt')
     n = 0 
 
 if __name__ == "__main__":

@@ -16,7 +16,7 @@ which in not needed for this thesis, in the other folders there is data for a de
 Lavi's folder --> 29 --> Device's Id\
 Edi's folder  --> 18 --> Device's Id\
 Paul's folder --> 19 --> Device's Id\
-Mara's folder --> 4 --> Device's Id\
+Mara's folder --> 4 --> Device's Id\    
 Darius's folder --> 5 --> Device's Id
 # DATA COLLECTION:
  ## STEPPER (Scari Urcare):
@@ -52,10 +52,14 @@ fata de momentul initial si/sau final)
  ## SITTING:
  #### **15.06.2022**
     -> Paul: subfolderul 16
-            19:01 -> 19:16
+           19:01 -> 19:16
     
     -> Mara: subfolderul 16
-            19:03 -> 19.16
+           19:03 -> 19.16
+ #### **03.08.2022**
+    -> Darius: subfolderul 16
+             17:48 -> 17:58
+            
 
  ## WALKING
  #### **15.06.2022**
