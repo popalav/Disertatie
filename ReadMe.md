@@ -50,6 +50,8 @@ fata de momentul initial si/sau final)
     
 
  ## SITTING:
+(Datele din ziua asta au o eroare de +-1/2 minute 
+fata de momentul initial si/sau final)
  #### **15.06.2022**
     -> Paul: subfolderul 16
            19:01 -> 19:16
@@ -62,6 +64,8 @@ fata de momentul initial si/sau final)
             
 
  ## WALKING
+(Datele din ziua asta au o eroare de +-1/2 minute 
+fata de momentul initial si/sau final)
  #### **15.06.2022**
 
     -> Paul: subfolderul 16
@@ -72,6 +76,8 @@ fata de momentul initial si/sau final)
             19:57 -> 20:09
     
  ## STANDING
+(Datele din ziua asta au o eroare de +-1/2 minute 
+fata de momentul initial si/sau final)
  #### **15.06.2022**
 
     -> Paul: subfolderul 16

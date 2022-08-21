@@ -112,7 +112,7 @@ def parse_file_name(file_name: str):
 
 def make_dataframe_from_blob(full_blob_path: str, action:str) -> pd.DataFrame:
     """ Creates a dataframe with selected info from blob"""
-    full_df = pd.DataFrame(columns=['deviceId', 'action', 'enqueuedTime', 'telemetry', 
+    full_df = pd.DataFrame(columns=['deviceId', 'action', 'enqueuedTime', 
                                     'acc_x', 'acc_y', 'acc_z'])
                                     # , 'gyr_x', 
                                     # 'gyr_y', 'gyr_z', 'mag_x', 'mag_y', 
@@ -122,7 +122,6 @@ def make_dataframe_from_blob(full_blob_path: str, action:str) -> pd.DataFrame:
     for nr, el in enumerate(data):
         el = el.split('","')
         row_dictionary = {}
-        row_dictionary['action'] = action
         for e  in el:
             name = e.split('":')[0].strip('"')
             value = e.split('":')[1].strip('"')
@@ -130,6 +129,7 @@ def make_dataframe_from_blob(full_blob_path: str, action:str) -> pd.DataFrame:
             if name == 'deviceId':
                 # full_df.loc[nr, 'deviceId'] = value
                 row_dictionary['deviceId'] = value
+                row_dictionary['action'] = action
             if name == 'enqueuedTime':
                 # full_df.loc[nr, 'enqueuedTime'] = value
                 row_dictionary['enqueuedTime'] = value
@@ -158,8 +158,7 @@ def make_dataframe_from_blob(full_blob_path: str, action:str) -> pd.DataFrame:
                         row_dictionary['mag_z'] = sensor_values.split(',')[2].split(':')[1]
                     """
         # append te dict to the df only if the telemetry column is present
-        n = 0
-        if 'telemetry' in row_dictionary.keys():
+        if 'acc_x' in row_dictionary.keys():
             full_df = full_df.append(row_dictionary, ignore_index=True)
     return full_df
 
@@ -179,7 +178,7 @@ def append_files(filenames: List[str], master_folder:str,
                     outfile.write(line)
 
 def merge_blobs(month:str, day: str, master_folder:str, start_hour:int,
-                end_hour:int, start_min:int, end_min:int):
+                end_hour:int, start_min:int, end_min:int, action: str):
 
     """ Merge blobs between a given date and time, saves data to a new file in merged folder"""
     # downloads all blobs from given date, that day
@@ -202,25 +201,23 @@ def merge_blobs(month:str, day: str, master_folder:str, start_hour:int,
 
     two_up = Path(__file__).resolve().parents[1]
     os.chdir(two_up)
-    append_files(selected_files, master_folder, start_min, end_min, 'URCARE')
+    append_files(selected_files, master_folder, start_min, end_min, action)
     return selected_files
 
-def blob_to_csv(full_blob_path:str):
+def blob_to_csv(full_blob_path:str, action:str):
     """ Selects only needed needed info from merged blob usually
     and it transform to a df then it writes the df to a csv"""
     current_path = Path(__file__).parent.resolve()
     newpath = f'{current_path}\\csv'
     if not os.path.exists(newpath):
         os.makedirs(newpath)
-    df = make_dataframe_from_blob(full_blob_path, 'URCARE')
+    df = make_dataframe_from_blob(full_blob_path, action)
     os.chdir(f'{current_path}\\csv')
     csv_name = full_blob_path.split('\\')[-1]
     df.to_csv(f'{csv_name}.csv')
 
 def main():     
+    pd =  blob_to_csv(r'D:\Uni_life\MASTER\Anul_2\DISERTATIE\Disertatie\src\06\01\fb1231ec-5b6b-476b-9751-71ae87ed1766.29.2022.06.01.16.06.mcwwizq7em5si.txt', 'URCARE')
     n = 0
-    blob_to_csv(r'D:\Uni_life\MASTER\Anul_2\DISERTATIE\Disertatie\src\merged\URCARE.29.10_12.txt')
-    n = 0 
-
 if __name__ == "__main__":
     main()
