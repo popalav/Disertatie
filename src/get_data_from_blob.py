@@ -6,43 +6,22 @@ import pandas as pd
 from azure.storage.blob import BlobClient, ContainerClient
 from utilities import Actions
 import re
+import glob 
 
 N_STR = 'BlobEndpoint=https://disertatiestorageaccount.blob.core.windows.net/;QueueEndpoint=https://disertatiestorageaccount.queue.core.windows.net/;FileEndpoint=https://disertatiestorageaccount.file.core.windows.net/;TableEndpoint=https://disertatiestorageaccount.table.core.windows.net/;SharedAccessSignature=sv=2020-08-04&ss=bfqt&srt=sco&sp=rwdlacupitfx&se=2022-03-18T07:37:21Z&st=2022-03-17T23:37:21Z&spr=https&sig=uvHB8JM97JDU6%2BPSVGQheKH5PtAuTlyStJYyjgh%2B9I4%3D'
 BLOB_CONN_STR = 'BlobEndpoint=https://disertatiestorageaccount.blob.core.windows.net/;QueueEndpoint=https://disertatiestorageaccount.queue.core.windows.net/;FileEndpoint=https://disertatiestorageaccount.file.core.windows.net/;TableEndpoint=https://disertatiestorageaccount.table.core.windows.net/;SharedAccessSignature=sv=2020-08-04&ss=bfqt&srt=sco&sp=rwdlacupitfx&se=2022-10-08T13:59:02Z&st=2022-04-13T05:59:02Z&spr=https,http&sig=oIjqHMLHKmZRVNhbSze4PzBtTo6F%2BZHZ01plxAucRR4%3D'
 CONTAINER = ContainerClient.from_connection_string(conn_str=BLOB_CONN_STR, container_name="disertatie")
 
-Timestamp = namedtuple("Timestamp", "minutes hours days month year")
+Split = namedtuple("Split", "minutes hours day month year masterfolder ")
 
-def get_all_blobs():
-    """ Returns an iterator with all blobs from a container """
-    blob_list = CONTAINER.list_blobs()
-    return blob_list
-
-"""
-for blob in blob_list:
-    # get first level folder names
-    blob_main_folder = blob.name.split('/')[1]
-    # get second order folder, year
-    blob_year = blob.name.split('/')[2]
-    # get third order folder, month
-    blob_month = blob.name.split('/')[3]
-    # get fourth order folder, day
-    blob_day = blob.name.split('/')[4]
-    # get fifth order folder, hour
-    blob_hour = blob.name.split('/')[5]
-    # get fourth order folder, minute
-    blob_minute = blob.name.split('/')[6]
-    print(blob.name + '\n')
-"""
-# Download a blob
 
 blob = BlobClient.from_connection_string(conn_str=BLOB_CONN_STR,
                                          container_name="disertatie",
                                          blob_name="fb1231ec-5b6b-476b-9751-71ae87ed1766/14/2022/03/18/00/22/wyta6lqqsiw6i")
-
-with open("./BlockDestination.json", "wb") as my_blob:
-    blob_data = blob.download_blob()
-    blob_data.readinto(my_blob)
+def get_all_blobs():
+    """ Returns an iterator with all blobs from a container """
+    blob_list = CONTAINER.list_blobs()
+    return blob_list
 
 def get_first_order_folder(blob_path: str) -> str:
     """ Returns first order folder for a blob path """
@@ -77,7 +56,7 @@ def download_blobs_by_day(month:str, day:str, master_folder:str):
     # Master folder is the top level folder which records data for each person, 
     # e.g mine is 29
     current_path = Path(__file__).parent.resolve()
-    newpath = f'{current_path}\\{month}\\{day}'
+    newpath = f'{current_path}\\{master_folder}\\{month}\\{day}'
     if not os.path.exists(newpath):
         os.makedirs(newpath)
     os.chdir(newpath)
@@ -103,12 +82,13 @@ def donwnload_blob_by_time(month: str, day: str, hour: str, minute: str) -> None
 
 def parse_file_name(file_name: str):
     """ Extracts date and time from file name by parsing it"""
-    minutes = file_name.split('.')[-3]
-    hours = file_name.split('.')[-4]
-    day = file_name.split('.')[-5] 
-    month = file_name.split('.')[-6]
-    year = file_name.split('.')[-7]
-    return Timestamp(minutes=minutes, hours=hours, day=day, month=month, year=year)
+    minutes = file_name.split('/')[-2]
+    hours = file_name.split('/')[-3]
+    day = file_name.split('/')[-4] 
+    month = file_name.split('/')[-5]
+    year = file_name.split('/')[-6]
+    masterfolder = file_name.split('/')[-7]
+    return Split(minutes=minutes, hours=hours, day=day, month=month, year=year, masterfolder=masterfolder)
 
 def make_dataframe_from_blob(full_blob_path: str, action:str) -> pd.DataFrame:
     """ Creates a dataframe with selected info from blob"""
@@ -137,7 +117,8 @@ def make_dataframe_from_blob(full_blob_path: str, action:str) -> pd.DataFrame:
                 telemetry = e.split('}}')[0].split('y":{"')[1] + '}'
                 battery_case = re.search('battery', value)
                 geolocation_case = re.search('geolocation',telemetry)
-                if battery_case is None and geolocation_case is None:
+                barometer_case = re.search('barometer',telemetry)
+                if battery_case is None and geolocation_case is None and barometer_case is None:
                     sensor_type = telemetry.split('":{"')[0]
                     sensor_values = telemetry.split('":{"')[1]
                     # daca tot randul de telemetry contine battery sau geolocation  nu se adauga randul deloc in da
@@ -146,7 +127,7 @@ def make_dataframe_from_blob(full_blob_path: str, action:str) -> pd.DataFrame:
                         # row_dictionary['telemetry'] = telemetry
                         row_dictionary['acc_x'] = sensor_values.split(',')[0].split(':')[1]
                         row_dictionary['acc_y'] = sensor_values.split(',')[1].split(':')[1]
-                        row_dictionary['acc_z'] = sensor_values.split(',')[2].split(':')[1]
+                        row_dictionary['acc_z'] = sensor_values.split(',')[2].split(':')[1].strip('}')
                     """ 
                     elif sensor_type == 'gyroscope':
                         row_dictionary['gyr_x'] = sensor_values.split(',')[0].split(':')[1]
@@ -182,9 +163,9 @@ def merge_blobs(month:str, day: str, master_folder:str, start_hour:int,
 
     """ Merge blobs between a given date and time, saves data to a new file in merged folder"""
     # downloads all blobs from given date, that day
-    download_blobs_by_day(month=month, day=day, master_folder=master_folder)
+    # download_blobs_by_day(month=month, day=day, master_folder=master_folder)
     current_path = Path(__file__).parent.resolve()
-    os.chdir(f'{current_path}\\{month}\\{day}') # recurse in folder where downloaded 
+    os.chdir(f'{current_path}\\all_blobs\\{master_folder}\\{month}\\{day}') # recurse in folder where downloaded 
     # select blobs by time from already downloaded blobs
     all_files = []
     selected_files = [] # all files matching given timeframe
@@ -216,8 +197,119 @@ def blob_to_csv(full_blob_path:str, action:str):
     csv_name = full_blob_path.split('\\')[-1]
     df.to_csv(f'{csv_name}.csv')
 
-def main():     
-    pd =  blob_to_csv(r'D:\Uni_life\MASTER\Anul_2\DISERTATIE\Disertatie\src\06\01\fb1231ec-5b6b-476b-9751-71ae87ed1766.29.2022.06.01.16.06.mcwwizq7em5si.txt', 'URCARE')
+def download_all_blobs():
+    """ Downloads all blobs and place them accordingly to master folder, month and day"""
+    # download all blobs and created folder by master folder, month and day 
+    current_path = Path(__file__).parent.resolve()
+    newpath = f'{current_path}\\all_blobs'
+    if not os.path.exists(newpath):
+        os.makedirs(newpath)
+    os.chdir(newpath)
+    all_blobs = get_all_blobs()
+    for blob in all_blobs:
+            split = parse_file_name(blob.name)
+            if split.masterfolder != '14':
+                newpath = f'{current_path}\\all_blobs\\{split.masterfolder}'
+                if not os.path.exists(newpath):
+                    os.makedirs(newpath)
+                os.chdir(newpath)
+                newpath = f'{current_path}\\all_blobs\\{split.masterfolder}\\{split.month}'
+                if not os.path.exists(newpath):
+                    os.makedirs(newpath)
+                os.chdir(newpath)
+                newpath = f'{current_path}\\all_blobs\\{split.masterfolder}\\{split.month}\\{split.day}'
+                if not os.path.exists(newpath):
+                    os.makedirs(newpath)
+                os.chdir(newpath)
+                download_blob_by_name(blob.name)
+
+def merge_label_data():
+    """ Merge blobs by category and creates a new blob labeled """
+    ########################## STEPPER ##########################
+    # Edi Stepper 1
+    merge_blobs(month='06', day='01', master_folder='18', start_hour=16,
+                end_hour=16, start_min=3, end_min=5, action= 'STEPPER')
+    # Edi Stepper 2
+    merge_blobs(month='06', day='01', master_folder='18', start_hour=16,
+                end_hour=16, start_min=17, end_min=20, action= 'STEPPER')
+    # Paul Stepper 1
+    merge_blobs(month='06', day='15', master_folder='19', start_hour=17,
+                end_hour=17, start_min=50, end_min=55, action= 'STEPPER')
+    # Paul Stepper 2
+    merge_blobs(month='06', day='15', master_folder='19', start_hour=18,
+                end_hour=18, start_min=7, end_min=11, action= 'STEPPER')
+    # Mara Stepper
+    merge_blobs(month='06', day='15', master_folder='4', start_hour=17,
+                end_hour=17, start_min=31, end_min=41, action= 'STEPPER')
+    # Darius Stepper 1
+    merge_blobs(month='06', day='15', master_folder='5', start_hour=17,
+                end_hour=17, start_min=22, end_min=28, action= 'STEPPER')
+    # Darius Stepper 2
+    merge_blobs(month='06', day='15', master_folder='5', start_hour=17,
+                end_hour=17, start_min=42, end_min=47, action= 'STEPPER')
+    # Lavi Stepper 1
+    merge_blobs(month='06', day='01', master_folder='29', start_hour=16,
+                end_hour=16, start_min=6, end_min=16, action= 'STEPPER')
+    # Lavi Stepper 2
+    merge_blobs(month='06', day='01', master_folder='29', start_hour=16,
+                end_hour=16, start_min=22, end_min=28, action= 'STEPPER')
+    ########################## LAYING ##########################
+    # Paul Laying
+    merge_blobs(month='07', day='14', master_folder='19', start_hour=16,
+                end_hour=16, start_min=24, end_min=35, action= 'LAYING')
+    ########################## SITTING ##########################
+    # Paul Sitting
+    merge_blobs(month='07', day='14', master_folder='19', start_hour=16,
+                end_hour=16, start_min=1, end_min=16, action= 'SITTING')
+    # Mara Sitting
+    merge_blobs(month='06', day='15', master_folder='4', start_hour=16,
+                end_hour=16, start_min=3, end_min=16, action= 'SITTING')
+    # Darius Sitting
+    merge_blobs(month='08', day='03', master_folder='5', start_hour=17,
+                end_hour=17, start_min=48, end_min=58, action= 'SITTING')
+    ########################## WALKING ##########################
+    # Paul Walking
+    merge_blobs(month='06', day='15', master_folder='19', start_hour=16,
+                end_hour=16, start_min=1, end_min=16, action= 'WALKING')
+    # Mara Walking
+    merge_blobs(month='06', day='15', master_folder='4', start_hour=16,
+                end_hour=16, start_min=3, end_min=16, action= 'WALKING')
+    # Darius Walking
+    merge_blobs(month='06', day='15', master_folder='5', start_hour=17,
+                end_hour=17, start_min=48, end_min=58, action= 'WALKING')
+    ########################## STANDING ##########################
+    # Darius Standing 
+    merge_blobs(month='06', day='15', master_folder='5', start_hour=16,
+                end_hour=17, start_min=57, end_min=9, action= 'STANDING')
+    # Mara Standing
+    merge_blobs(month='06', day='15', master_folder='4', start_hour=16,
+                end_hour=16, start_min=37, end_min=47, action= 'STANDING')
+    # Paul Walking
+    merge_blobs(month='06', day='15', master_folder='19', start_hour=16,
+                end_hour=16, start_min=37, end_min=47, action= 'STANDING')
+
+def main():   
+    # Call this only at first run
+    # download_all_blobs()
+    
+    merge_label_data()
+
+    current_path = Path(__file__).parent.resolve()
+    os.chdir(f'{current_path}\\merged')
+    for root, dirs, files in os.walk(".", topdown=False):
+        for name in files:
+            full_path = os.path.abspath(f'{current_path}\\merged\\{name}')
+            blob_to_csv(full_blob_path=full_path, action=name.split('_')[0])
+
+    files = os.path.join(f'{current_path}\\csv', "*.csv")
+    # list of merged files returned
+    files = glob.glob(files)
+
+    print("Resultant CSV after joining all CSV files at a particular location...");
+
+    # joining files with concat and read_csv
+    df = pd.concat(map(pd.read_csv, files), ignore_index=True)
+    print(df)
     n = 0
 if __name__ == "__main__":
     main()
