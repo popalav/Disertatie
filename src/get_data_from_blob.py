@@ -8,6 +8,7 @@ from utilities import Actions
 import re
 import glob 
 
+
 N_STR = 'BlobEndpoint=https://disertatiestorageaccount.blob.core.windows.net/;QueueEndpoint=https://disertatiestorageaccount.queue.core.windows.net/;FileEndpoint=https://disertatiestorageaccount.file.core.windows.net/;TableEndpoint=https://disertatiestorageaccount.table.core.windows.net/;SharedAccessSignature=sv=2020-08-04&ss=bfqt&srt=sco&sp=rwdlacupitfx&se=2022-03-18T07:37:21Z&st=2022-03-17T23:37:21Z&spr=https&sig=uvHB8JM97JDU6%2BPSVGQheKH5PtAuTlyStJYyjgh%2B9I4%3D'
 BLOB_CONN_STR = 'BlobEndpoint=https://disertatiestorageaccount.blob.core.windows.net/;QueueEndpoint=https://disertatiestorageaccount.queue.core.windows.net/;FileEndpoint=https://disertatiestorageaccount.file.core.windows.net/;TableEndpoint=https://disertatiestorageaccount.table.core.windows.net/;SharedAccessSignature=sv=2020-08-04&ss=bfqt&srt=sco&sp=rwdlacupitfx&se=2022-10-08T13:59:02Z&st=2022-04-13T05:59:02Z&spr=https,http&sig=oIjqHMLHKmZRVNhbSze4PzBtTo6F%2BZHZ01plxAucRR4%3D'
 CONTAINER = ContainerClient.from_connection_string(conn_str=BLOB_CONN_STR, container_name="disertatie")
@@ -253,6 +254,9 @@ def merge_label_data():
     # Lavi Stepper 2
     merge_blobs(month='06', day='01', master_folder='29', start_hour=16,
                 end_hour=16, start_min=22, end_min=28, action= 'STEPPER')
+    # Ana Stepper 1
+    merge_blobs(month='08', day='30', master_folder='12', start_hour=12,
+                end_hour=12, start_min=13, end_min=16, action= 'STEPPER')
     ########################## LAYING ##########################
     # Paul Laying
     merge_blobs(month='07', day='14', master_folder='19', start_hour=16,
